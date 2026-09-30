@@ -281,7 +281,7 @@ class VectorUtils {
      * @param value The 4-byte float value to serialize
      * @return The 2-byte representation as a short
      */
-    private static Short floatToFloat16(Float value) {
+    static short floatToFloat16(Float value) {
         int bits = Float.floatToIntBits(value);
 
         int sign = (bits >>> 31) & 0x1;
