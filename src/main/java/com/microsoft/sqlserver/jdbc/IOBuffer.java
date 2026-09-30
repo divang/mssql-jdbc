@@ -3804,6 +3804,45 @@ final class TDSWriter {
     }
 
     /**
+     * Write vector data directly into the TDS stream without intermediate byte[] allocation.
+     *
+     * @param vector
+     *        the Vector object to write
+     * @throws SQLServerException
+     */
+    void writeVector(Vector vector) throws SQLServerException {
+        if (null == vector || null == vector.getData()) {
+            return;
+        }
+        writeShort((short) VectorUtils.getVectorLength(vector));
+        writeVectorData(vector);
+    }
+
+    /**
+     * Writes the 8-byte header and float payload of a Vector directly into the TDS stream.
+     */
+    void writeVectorData(Vector vector) throws SQLServerException {
+        writeByte((byte) 0xA9);
+        writeByte((byte) 0x01);
+        writeShort((short) vector.getDimensionCount());
+        writeByte(VectorUtils.getScaleByte(vector.getVectorDimensionType()));
+        writeByte((byte) 0);
+        writeByte((byte) 0);
+        writeByte((byte) 0);
+
+        Object[] data = vector.getData();
+        if (vector.getVectorDimensionType() == Vector.VectorDimensionType.FLOAT16) {
+            for (Object value : data) {
+                writeShort(VectorUtils.floatToFloat16((Float) value));
+            }
+        } else {
+            for (Object value : data) {
+                writeReal(((Number) value).floatValue());
+            }
+        }
+    }
+
+    /**
      * Append a double value in the TDS stream.
      * 
      * @param value
@@ -5907,8 +5946,7 @@ final class TDSWriter {
     void writeRPCVector(String sName, Vector vectorValue, boolean bOut, int scale, int precision)
             throws SQLServerException {
         boolean vectorValueNull = (vectorValue == null);
-        byte[] bValue = vectorValueNull ? null : VectorUtils.toBytes(vectorValue);
-
+ 
         writeRPCNameValType(sName, bOut, TDSType.VECTOR);
 
         if (vectorValueNull) {
@@ -5917,13 +5955,14 @@ final class TDSWriter {
             writeByte((byte) scaleByte); // scale (dimension type)
             writeShort((short) -1); // actual len
         } else {
-            writeShort((short) VectorUtils.getVectorLength(vectorValue)); // max length
+            int vectorLen = VectorUtils.getVectorLength(vectorValue);
+            writeShort((short) vectorLen); // max length
             writeByte((byte) VectorUtils.getScaleByte(vectorValue.getVectorDimensionType())); // scale (dimension type)
             if (vectorValue.getData() == null) {
                 writeShort((short) -1); // actual len
             } else {
-                writeShort((short) VectorUtils.getVectorLength(vectorValue)); // actual len
-                writeBytes(bValue); // data
+                writeShort((short) vectorLen); // actual len
+                writeVectorData(vectorValue); // stream directly without intermediate byte[] allocation
             }
         }
     }

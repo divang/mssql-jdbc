@@ -2522,8 +2522,7 @@ public class SQLServerBulkCopy implements java.lang.AutoCloseable, java.io.Seria
                         if (vector.getData() == null) {
                             writeNullToTdsWriter(tdsWriter, bulkJdbcType, isStreaming);
                         } else {
-                            tdsWriter.writeShort((short) (VectorUtils.getVectorLength(vector))); // Actual length
-                            tdsWriter.writeBytes(VectorUtils.toBytes(vector)); // Write vector data
+                            tdsWriter.writeVector(vector);
                         } 
                     }
                     break;
